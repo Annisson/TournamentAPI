@@ -31,20 +31,25 @@ namespace TournamentAPI.Data.Repositories
 
         public void Add(Game game)
         {
-            _context.Add(game);
-            _context.SaveChangesAsync();
+            _context.Game.Add(game);
+            _context.SaveChanges();
         }
 
         public void Update(Game game)
         {
-            _context.Update(game);
-            _context.SaveChangesAsync();
+            var existingEntity = _context.Game.Local.FirstOrDefault(entry => entry.Id == game.Id);
+            if (existingEntity != null)
+            {
+                _context.Entry(existingEntity).State = EntityState.Detached;
+            }
+            _context.Game.Update(game);
+            _context.SaveChanges();
         }
 
         public void Remove(Game game)
         {
-            _context.Remove(game);
-            _context.SaveChangesAsync();
+            _context.Game.Remove(game);
+            _context.SaveChanges();
         }
 
     }
