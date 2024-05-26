@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using TournamentAPI.Data.Data;
 using TournamentAPI.Core.Entities;
+using TournamentAPI.Core.Repositories;
 
 namespace TournamentAPI.Api.Controllers
 {
@@ -9,25 +8,25 @@ namespace TournamentAPI.Api.Controllers
     [ApiController]
     public class GamesController : ControllerBase
     {
-        private readonly TournamentAPIApiContext _context;
+        private readonly IGameRepository _gameRepository;
 
-        public GamesController(TournamentAPIApiContext context)
+        public GamesController(IGameRepository gameRepository)
         {
-            _context = context;
+            _gameRepository = gameRepository ?? throw new ArgumentNullException(nameof(gameRepository));
         }
 
         // GET: api/Games
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Game>>> GetGame()
         {
-            return await _context.Game.ToListAsync();
+            return (await _gameRepository.GetAllAsync()).ToList();
         }
 
         // GET: api/Games/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Game>> GetGame(int id)
         {
-            var game = await _context.Game.FindAsync(id);
+            var game = await _gameRepository.GetAsync(id);
 
             if (game == null)
             {
@@ -47,23 +46,12 @@ namespace TournamentAPI.Api.Controllers
                 return BadRequest();
             }
 
-            _context.Entry(game).State = EntityState.Modified;
+            var getGame = await _gameRepository.GetAsync(id);
 
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!GameExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
+            if (getGame == null)
+                return NotFound();
+
+            _gameRepository.Update(game);
 
             return NoContent();
         }
@@ -73,31 +61,30 @@ namespace TournamentAPI.Api.Controllers
         [HttpPost]
         public async Task<ActionResult<Game>> PostGame(Game game)
         {
-            _context.Game.Add(game);
-            await _context.SaveChangesAsync();
+            _gameRepository.Add(game);
 
-            return CreatedAtAction("GetGame", new { id = game.Id }, game);
+            return CreatedAtAction(nameof(GetGame), new { id = game.Id }, game);
         }
 
         // DELETE: api/Games/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteGame(int id)
         {
-            var game = await _context.Game.FindAsync(id);
-            if (game == null)
+            var result = await _gameRepository.GetAsync(id);
+
+            if (result == null)
             {
                 return NotFound();
             }
 
-            _context.Game.Remove(game);
-            await _context.SaveChangesAsync();
+            _gameRepository.Remove(result);
 
             return NoContent();
         }
 
-        private bool GameExists(int id)
+        private async Task<bool> GameExists(int id)
         {
-            return _context.Game.Any(e => e.Id == id);
+            return await _gameRepository.AnyAsync(id);
         }
     }
 }
