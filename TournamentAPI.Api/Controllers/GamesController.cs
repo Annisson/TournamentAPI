@@ -8,25 +8,25 @@ namespace TournamentAPI.Api.Controllers
     [ApiController]
     public class GamesController : ControllerBase
     {
-        private readonly IGameRepository _gameRepository;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public GamesController(IGameRepository gameRepository)
+        public GamesController(IUnitOfWork unitOfWork)
         {
-            _gameRepository = gameRepository ?? throw new ArgumentNullException(nameof(gameRepository));
+            _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
         }
 
         // GET: api/Games
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Game>>> GetGame()
         {
-            return (await _gameRepository.GetAllAsync()).ToList();
+            return (await _unitOfWork.GameRepository.GetAllAsync()).ToList();
         }
 
         // GET: api/Games/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Game>> GetGame(int id)
         {
-            var game = await _gameRepository.GetAsync(id);
+            var game = await _unitOfWork.GameRepository.GetAsync(id);
 
             if (game == null)
             {
@@ -46,12 +46,12 @@ namespace TournamentAPI.Api.Controllers
                 return BadRequest();
             }
 
-            var getGame = await _gameRepository.GetAsync(id);
+            var getGame = await _unitOfWork.GameRepository.GetAsync(id);
 
             if (getGame == null)
                 return NotFound();
 
-            _gameRepository.Update(game);
+            _unitOfWork.GameRepository.Update(game);
 
             return NoContent();
         }
@@ -61,7 +61,7 @@ namespace TournamentAPI.Api.Controllers
         [HttpPost]
         public async Task<ActionResult<Game>> PostGame(Game game)
         {
-            _gameRepository.Add(game);
+            _unitOfWork.GameRepository.Add(game);
 
             return CreatedAtAction(nameof(GetGame), new { id = game.Id }, game);
         }
@@ -70,21 +70,21 @@ namespace TournamentAPI.Api.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteGame(int id)
         {
-            var result = await _gameRepository.GetAsync(id);
+            var result = await _unitOfWork.GameRepository.GetAsync(id);
 
             if (result == null)
             {
                 return NotFound();
             }
 
-            _gameRepository.Remove(result);
+            _unitOfWork.GameRepository.Remove(result);
 
             return NoContent();
         }
 
         private async Task<bool> GameExists(int id)
         {
-            return await _gameRepository.AnyAsync(id);
+            return await _unitOfWork.GameRepository.AnyAsync(id);
         }
     }
 }
