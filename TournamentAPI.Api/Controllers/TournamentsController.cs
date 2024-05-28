@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Mvc;
+using TournamentAPI.Core.Dto;
 using TournamentAPI.Core.Entities;
 using TournamentAPI.Core.Repositories;
 
@@ -9,22 +11,25 @@ namespace TournamentAPI.Api.Controllers
     public class TournamentsController : ControllerBase
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IMapper _mapper;
 
-        public TournamentsController(IUnitOfWork unitOfWork)
+        public TournamentsController(IUnitOfWork unitOfWork, IMapper mapper)
         {
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
+            _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
         }
 
         // GET: api/Tournaments
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Tournament>>> GetTournaments()
+        public async Task<ActionResult<IEnumerable<TournamentDto>>> GetTournaments()
         {
-            return (await _unitOfWork.TournamentRepository.GetAllAsync()).ToList();
+            var tournament = await _unitOfWork.TournamentRepository.GetAllAsync();
+            return Ok(_mapper.Map<IEnumerable<TournamentDto>>(tournament));
         }
 
         // GET: api/Tournaments/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<Tournament>> GetTournament(int id)
+        public async Task<ActionResult<TournamentDto>> GetTournament(int id)
         {
             var tournament = await _unitOfWork.TournamentRepository.GetAsync(id);
 
@@ -33,25 +38,30 @@ namespace TournamentAPI.Api.Controllers
                 return NotFound();
             }
 
-            return tournament;
+            return Ok(_mapper.Map<TournamentDto>(tournament));
         }
 
         // PUT: api/Tournaments/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutTournament(int id, Tournament tournament)
+        public async Task<IActionResult> PutTournament(int id, TournamentDto tournamentDto)
         {
-            if (id != tournament.Id)
+            if (id != tournamentDto.Id)
             {
                 return BadRequest();
             }
 
-            var getTournament = await _unitOfWork.TournamentRepository.GetAsync(id);
+            var tournamentEntity = await _unitOfWork.TournamentRepository.GetAsync(id);
 
-            if (getTournament == null)
+            if (tournamentEntity == null)
+            {
                 return NotFound();
+            }
 
-            _unitOfWork.TournamentRepository.Update(tournament);
+            _mapper.Map(tournamentDto, tournamentEntity);
+
+            _unitOfWork.TournamentRepository.Update(tournamentEntity);
+            await _unitOfWork.CompleteAsync();
 
             return NoContent();
         }
@@ -59,10 +69,28 @@ namespace TournamentAPI.Api.Controllers
         // POST: api/Tournaments
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<Tournament>> PostTournament(Tournament tournament)
+        public async Task<ActionResult<TournamentDto>> PostTournament(TournamentDto tournamentDto)
         {
-            _unitOfWork.TournamentRepository.Add(tournament);
-            return CreatedAtAction(nameof(GetTournament), new { id = tournament.Id }, tournament);
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                var tournament = _mapper.Map<Tournament>(tournamentDto);
+                _unitOfWork.TournamentRepository.Add(tournament);
+
+                tournamentDto.Id = tournament.Id;
+
+                return CreatedAtAction("GetTournament", new { id = tournamentDto.Id }, tournamentDto);
+
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Internal server error: " + ex.Message);
+            }
+
         }
 
         // DELETE: api/Tournaments/5
@@ -77,6 +105,7 @@ namespace TournamentAPI.Api.Controllers
             }
 
             _unitOfWork.TournamentRepository.Remove(result);
+            await _unitOfWork.CompleteAsync();
 
             return NoContent();
         }
