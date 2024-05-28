@@ -6,8 +6,8 @@ namespace TournamentAPI.Data.Repositories
     public class UnitOfWork : IUnitOfWork
     {
         private readonly TournamentAPIApiContext _context;
-        private TournamentRepository _tournamentRepository;
-        private GameRepository _gameRepository;
+        private ITournamentRepository _tournamentRepository;
+        private IGameRepository _gameRepository;
 
         public UnitOfWork(TournamentAPIApiContext context)
         {
@@ -43,6 +43,11 @@ namespace TournamentAPI.Data.Repositories
         public async Task CompleteAsync()
         {
             await _context.SaveChangesAsync();
+        }
+
+        public void Dispose()
+        {
+            _context.Dispose();
         }
     }
 }
